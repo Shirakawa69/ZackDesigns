@@ -563,6 +563,8 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radiu
   <a href="#pricing" style="transition-delay:.32s">Pricing <small>07</small></a>
 </nav>
 
+<audio id="sessionAudio" preload="auto" src="audio/neinei.mp3" aria-hidden="true"></audio>
+
 <main id="main">
 <!-- ================= HERO ================= -->
 <section class="hero" id="top">
@@ -1144,9 +1146,53 @@ const panelSpy=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting
 $$('.feat').forEach(f=>panelSpy.observe(f));
 
 /* ---------- Conductor demo ---------- */
-const condPlay=$('#condPlay'),condTime=$('#condTime'),condRing=$('#condRing'),phases=$$('.phase');const CC=389.6;let cT=0,cInt=null;
+const condPlay=$('#condPlay'),condTime=$('#condTime'),condRing=$('#condRing'),phases=$$('.phase');const CC=389.6;let cT=0,cInt=null;const sessionAudio=$('#sessionAudio');
+if (!condPlay) { console.warn('Conductor play button not found.'); }
 function paintCond(){condRing.style.strokeDashoffset=CC*(1-(cT%36)/36);const m=Math.floor(cT/60),s=cT%60;condTime.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;const ph=(cT%36)<8?0:(cT%36)<28?1:2;phases.forEach((p,i)=>p.classList.toggle('on',i===ph));}
-condPlay.addEventListener('click',()=>{const playing=condPlay.getAttribute('aria-pressed')==='true';condPlay.setAttribute('aria-pressed',String(!playing));condPlay.textContent=playing?'▶':'❚❚';condPlay.setAttribute('aria-label',playing?'Play demo session':'Pause demo session');if(playing){clearInterval(cInt);}else{cInt=setInterval(()=>{cT++;paintCond();},1000);}});
+function setCondButtonState(isPlaying){
+  if (!condPlay) return;
+  condPlay.setAttribute('aria-pressed', String(isPlaying));
+  condPlay.textContent = isPlaying ? '❚❚' : '▶';
+  condPlay.setAttribute('aria-label', isPlaying ? 'Pause demo session' : 'Play demo session');
+}
+if (condPlay) {
+  condPlay.addEventListener('click', async () => {
+    if (!sessionAudio) {
+      console.warn('Audio element not found.');
+      return;
+    }
+    const isPlaying = condPlay.getAttribute('aria-pressed') === 'true';
+    if (isPlaying) {
+      sessionAudio.pause();
+      clearInterval(cInt);
+      cInt = null;
+      setCondButtonState(false);
+      return;
+    }
+
+    try {
+      sessionAudio.currentTime = 0;
+      await sessionAudio.play();
+      setCondButtonState(true);
+      cInt = setInterval(() => {
+        cT++;
+        paintCond();
+      }, 1000);
+    } catch (error) {
+      console.warn('Audio playback failed:', error);
+      setCondButtonState(false);
+      clearInterval(cInt);
+      cInt = null;
+    }
+  });
+  sessionAudio?.addEventListener('ended', () => {
+    clearInterval(cInt);
+    cInt = null;
+    cT = 0;
+    paintCond();
+    setCondButtonState(false);
+  });
+}
 
 /* ---------- Shield demo ---------- */
 const shieldToggle=$('#shieldToggle'),shieldDemo=$('#shieldDemo'),shieldStatus=$('#shieldStatus');
